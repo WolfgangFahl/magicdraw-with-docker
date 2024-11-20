@@ -17,6 +17,7 @@ These files are no longer available online. We will assume these files
 to be in the md/assets folder which is configured  in .gitignore.
 
 ## Testing Java GUI/X11 Setup
+see also [Issue #2 Java 6 Swing GUI Test](https://github.com/WolfgangFahl/magicdraw-with-docker/issues/2)
 
 Before attempting to run MagicDraw in Docker, it's essential to verify that Java 6 Swing GUI applications can run properly in your Docker environment. This prerequisite test helps ensure:
 - Java 6 is working correctly in the container

@@ -3,7 +3,16 @@
 echo "DISPLAY=$DISPLAY"
 
 # prerequisites
-sudo port install socat
+# Check the operating system
+os=$(uname -a)
+
+# Install socat if on macOS (Darwin)
+if [[ "$os" == *Darwin* ]]; then
+  if ! command -v socat &>/dev/null; then
+    echo "Installing socat..."
+    sudo port install socat
+  fi
+fi
 
 # use socat for port 6000
 port6000() {
@@ -15,9 +24,13 @@ port6000() {
   fi
 }
 
-docker stop javagui
-docker rm javagui
-os=$(uname -a)
+# Stop and remove the container only if it exists
+if docker ps -a --format '{{.Names}}' | grep -q '^javagui$'; then
+  echo "Stopping and removing existing javagui container..."
+  docker stop javagui
+  docker rm javagui
+fi
+
 case $os in
   Linux*)
    dockerdisplay=$DISPLAY
@@ -30,4 +43,3 @@ case $os in
    n="";;
 esac
 docker run  --name javagui -e DISPLAY=$dockerdisplay $n $v bitplan/javagui:latest
-#docker exec -it javagui /bin/bash
