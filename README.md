@@ -28,8 +28,7 @@ Before attempting to run MagicDraw in Docker, it's essential to verify that Java
 Clone this repository:
 ```bash
 git clone https://github.com/WolfgangFahl/magicdraw-with-docker
-cd magicdraw-with-docker
-cd guitest
+cd magicdraw-with-docker/gui
 ./build
 ./run
 ```
