@@ -1,0 +1,33 @@
+#!/bin/bash
+# WF 2019-04-03
+echo "DISPLAY=$DISPLAY"
+# use socat for port 6000
+port6000() {
+  echo "checking port 6000"
+  lsof -i TCP:6000
+  if [ $? -ne 0 ]
+  then
+    socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\"&
+  fi
+}
+imagename=md16o
+containername=$imagename
+echo "stopping $containername"
+docker stop $containername
+echo "removing $containername"
+docker rm $containername
+os=$(uname -a)
+case $os in
+  Linux*)
+   dockerdisplay=$DISPLAY
+   n="--net=host"
+   v="-v /tmp/.X11-unix:/tmp/.X11-unix -v $HOME/.Xauthority:/root/.Xauthority:rw";;
+  Darwin*)
+   port6000
+   # allow access from localhost
+   xhost + 127.0.0.1
+   dockerdisplay=host.docker.internal:0
+   v=""
+   n="";;
+esac
+docker run  --name $containername -e DISPLAY=$dockerdisplay $n $v -v $HOME/:/home/$USER bitplan/$imagename:latest

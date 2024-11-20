@@ -1,0 +1,25 @@
+#/bin/bash
+# WF 2019-06-04
+# see https://askubuntu.com/a/1026336/129227
+# revised from https://dzone.com/articles/installing-oracle-java6-ubuntu
+# 1. we expect the oracle bin file in /usr/local/src
+cd /usr/local/src
+# 2. Make the download bin file executable
+chmod +x jdk-6u20-linux-x64.bin
+# 3. Extract the bin file.
+echo "yes" | ./jdk-6u20-linux-x64.bin
+# 4. Using the following command create a folder called "jvm" inside /usr/lib if it does not already exist.
+mkdir -p /usr/lib/jvm
+# 5. Move the extracted folder into the newly created jvm folder.
+java6=/usr/lib/jvm/java-6-oracle
+mv jdk1.6.0_20 $java6
+# 6. To install the Java source run the following commands.
+update-alternatives --install /usr/bin/javac javac $java6/bin/javac 1
+update-alternatives --install /usr/bin/java java $java6/bin/java 1
+update-alternatives --install /usr/bin/javaws javaws $java6/bin/javaws 1
+# 7. To make this default java:
+update-alternatives --config javac
+update-alternatives --config java
+update-alternatives --config javaws
+# 8. To make symlinks point to the new Java location run the following command.
+ls -la /etc/alternatives/java*

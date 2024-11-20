@@ -1,0 +1,3 @@
+#!/bin/bash
+# WF 2019-04-03
+docker build . -t bitplan/md16:latest
