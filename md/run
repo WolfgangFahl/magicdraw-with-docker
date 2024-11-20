@@ -43,6 +43,8 @@ usage() {
   echo "Usage: $0 [OPTIONS]"
   echo "Options:"
   echo "  -h, --help         Show this help message"
+  echo "  -b, --bash         Open a Bash session in the Docker container"
+  echo "  -d, --debug        Enable debug mode (set -x)"
   echo "  -k, --kill         Stop and remove the Docker container"
   echo "  -r, --run          Run the MagicDraw Docker container"
   echo "  -v, --version      Show version information"
@@ -60,9 +62,26 @@ port6000() {
   fi
 }
 
+# Stop and remove the Docker container if it exists
 kill_docker() {
-  docker stop $containername
-  docker rm $containername
+  if docker ps -a --format '{{.Names}}' | grep -q "^$containername$"; then
+    color_msg $blue "Stopping and removing existing container: $containername"
+    docker stop $containername &>/dev/null
+    docker rm $containername &>/dev/null
+    positive "Container $containername successfully stopped and removed."
+  else
+    positive "No existing container with the name $containername found."
+  fi
+}
+
+# Bash into the Docker container if it exists
+bash_docker() {
+  if docker ps -a --format '{{.Names}}' | grep -q "^$containername$"; then
+    color_msg $blue "Starting a Bash session in the container: $containername"
+    docker exec -it $containername /bin/bash
+  else
+    negative "Container $containername does not exist. Start the container first."
+  fi
 }
 
 #
@@ -95,6 +114,7 @@ fi
 while [[ $# -gt 0 ]]; do
   case $1 in
     -h|--help) usage ;;
+    -b|--bash) bash_docker ;;
     -d|--debug) set -x ;;
     -k|--kill) kill_docker;;
     -r|--run) run_docker;;
