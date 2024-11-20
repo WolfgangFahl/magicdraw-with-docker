@@ -47,25 +47,33 @@ usage() {
   echo "  -d, --debug        Enable debug mode (set -x)"
   echo "  -k, --kill         Stop and remove the Docker container"
   echo "  -r, --run          Run the MagicDraw Docker container"
+  echo "  -s, --restart      Restart the Docker container if it exists"
   echo "  -v, --version      Show version information"
   exit 1
 }
 
+# Check if the Docker container exists, with optional message
+container_exists() {
+  local l_msg="$1"
+  if docker ps -a --format '{{.Names}}' | grep -q "^$containername$"; then
+    [[ -n "$l_msg" ]] && color_msg $blue "$l_msg"
+    return 0
+  fi
+  return 1
+}
 
-# use socat for port 6000
+# Use socat for port 6000
 port6000() {
   echo "checking port 6000"
   lsof -i TCP:6000
-  if [ $? -ne 0 ]
-  then
-    socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\"&
+  if [ $? -ne 0 ]; then
+    socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:"$DISPLAY" &
   fi
 }
 
 # Stop and remove the Docker container if it exists
 kill_docker() {
-  if docker ps -a --format '{{.Names}}' | grep -q "^$containername$"; then
-    color_msg $blue "Stopping and removing existing container: $containername"
+  if container_exists "Stopping and removing existing container: $containername"; then
     docker stop $containername &>/dev/null
     docker rm $containername &>/dev/null
     positive "Container $containername successfully stopped and removed."
@@ -76,33 +84,53 @@ kill_docker() {
 
 # Bash into the Docker container if it exists
 bash_docker() {
-  if docker ps -a --format '{{.Names}}' | grep -q "^$containername$"; then
-    color_msg $blue "Starting a Bash session in the container: $containername"
+  if container_exists "Starting a Bash session in the container: $containername"; then
     docker exec -it $containername /bin/bash
+    positive "Bash session exited successfully."
   else
     negative "Container $containername does not exist. Start the container first."
   fi
 }
 
-#
-# run MagicDraw 16.9 in a docker container
-#
+# Restart the Docker container if it exists
+restart_docker() {
+  if container_exists "Restarting container: $containername"; then
+    docker restart $containername
+    positive "Container $containername restarted successfully."
+  else
+    negative "Container $containername does not exist. Use -r to create and run the container."
+  fi
+}
+
+# Run MagicDraw 16.9 in a Docker container
 run_docker() {
   echo "DISPLAY=$DISPLAY"
 
   os=$(uname -a)
   case $os in
     Linux*)
-     dockerdisplay=$DISPLAY
-     n="--net=host"
-     v="-v /tmp/.X11-unix:/tmp/.X11-unix -v $HOME/.Xauthority:/root/.Xauthority:rw";;
+      dockerdisplay=$DISPLAY
+      n="--net=host"
+      v="-v /tmp/.X11-unix:/tmp/.X11-unix -v $HOME/.Xauthority:/root/.Xauthority:rw";;
     Darwin*)
-     port6000
-     dockerdisplay=docker.for.mac.host.internal:0
-     v=""
-     n="";;
+      port6000
+      dockerdisplay=docker.for.mac.host.internal:0
+      v=""
+      n="";;
   esac
-  docker run  --name $containername -e DISPLAY=$dockerdisplay $n $v -v $HOME/:/home/$USER bitplan/$imagename:latest
+
+  if container_exists; then
+    if docker ps --format '{{.Names}}' | grep -q "^$containername$"; then
+      positive "Container $containername is already running."
+    else
+      color_msg $blue "Starting stopped container: $containername"
+      docker start $containername
+      positive "Container $containername started successfully."
+    fi
+  else
+    color_msg $blue "Creating and starting a new container: $containername"
+    docker run --name $containername -e DISPLAY=$dockerdisplay $n $v -v $HOME/:/home/$USER bitplan/$imagename:latest
+  fi
 }
 
 # Show usage if no arguments are provided
@@ -115,10 +143,12 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     -h|--help) usage ;;
     -b|--bash) bash_docker ;;
+    -k|--kill) kill_docker ;;
+    -r|--run) run_docker ;;
+    -s|--restart) restart_docker ;;
+    -v|--version) color_msg $green "Version: $VERSION" ;;
     -d|--debug) set -x ;;
-    -k|--kill) kill_docker;;
-    -r|--run) run_docker;;
-    -v|--version) color_msg "Version: $version" ;;
+    *) negative "Unknown option: $1"; usage ;;
   esac
   shift
 done
