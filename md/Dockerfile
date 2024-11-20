@@ -24,13 +24,18 @@ ENV JAVA_HOME /usr/lib/jvm/java-6-oracle
 
 # get the magicdraw sources
 ADD MD_UML_169_no_install.zip /home/root/java/md/
+#ADD MD_UML_168_no_install.zip /home/root/java/md/
+#ADD MD_UML_168_unix.sh /home/root/java/md/
 
 WORKDIR /home/root/java/md
-
+#RUN chmod +x MD_UML_168_unix.sh
+#RUN ./MD_UML_168_unix.sh
 RUN unzip /home/root/java/md/MD_UML_169_no_install.zip
+#RUN unzip /home/root/java/md/MD_UML_168_no_install.zip
 
-# Make sure you have the your license file available
 ADD MagicDraw_16_9_Enterprise_Mobile_key.txt /home/root/java/md
+#ADD MagicDraw_16_8_Enterprise_Mobile_key.txt /home/root/java/md
+ADD MagicDraw_16_9_Enterprise_key.txt /home/root/java/md
 
-# start Magicdraw
 ENTRYPOINT ["bin/mduml"]
+#ENTRYPOINT ["tail", "-f", "/dev/null"]

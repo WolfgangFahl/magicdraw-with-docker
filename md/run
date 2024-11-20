@@ -12,9 +12,7 @@ port6000() {
 }
 imagename=md16o
 containername=$imagename
-echo "stopping $containername"
 docker stop $containername
-echo "removing $containername"
 docker rm $containername
 os=$(uname -a)
 case $os in
@@ -24,10 +22,9 @@ case $os in
    v="-v /tmp/.X11-unix:/tmp/.X11-unix -v $HOME/.Xauthority:/root/.Xauthority:rw";;
   Darwin*)
    port6000
-   # allow access from localhost
-   xhost + 127.0.0.1
-   dockerdisplay=host.docker.internal:0
+   dockerdisplay=docker.for.mac.host.internal:0
    v=""
    n="";;
 esac
 docker run  --name $containername -e DISPLAY=$dockerdisplay $n $v -v $HOME/:/home/$USER bitplan/$imagename:latest
+#docker exec -it md16 /bin/bash
