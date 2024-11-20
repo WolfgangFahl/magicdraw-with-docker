@@ -33,5 +33,5 @@ RUN unzip /home/root/java/md/MD_UML_169_no_install.zip
 ADD assets/MagicDraw_16_9_Enterprise_Mobile_key.txt /home/root/java/md
 ADD assets/MagicDraw_16_9_Enterprise_key.txt /home/root/java/md
 
+# start Magicdraw
 ENTRYPOINT ["bin/mduml"]
-#ENTRYPOINT ["tail", "-f", "/dev/null"]
