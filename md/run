@@ -1,6 +1,55 @@
 #!/bin/bash
 # WF 2019-04-03
-echo "DISPLAY=$DISPLAY"
+# updated 2024-11-20
+imagename=md16o
+containername=$imagename
+VERSION="0.2"
+
+# Color definitions
+blue='\033[0;34m'
+red='\033[0;31m'
+green='\033[0;32m'
+endColor='\033[0m'
+
+# Function to display colored messages
+color_msg() {
+  local l_color="$1"
+  local l_msg="$2"
+  echo -e "${l_color}$l_msg${endColor}"
+}
+
+# Function to display errors
+error() {
+  local l_msg="$1"
+  color_msg $red "Error:" 1>&2
+  color_msg $red "\t$l_msg" 1>&2
+  exit 1
+}
+
+# Function to display negative messages
+negative() {
+  local l_msg="$1"
+  color_msg $red "❌:$l_msg"
+}
+
+# Function to display positive messages
+positive() {
+  local l_msg="$1"
+  color_msg $green "✅:$l_msg"
+}
+
+# Function to display usage information
+usage() {
+  echo "Usage: $0 [OPTIONS]"
+  echo "Options:"
+  echo "  -h, --help         Show this help message"
+  echo "  -k, --kill         Stop and remove the Docker container"
+  echo "  -r, --run          Run the MagicDraw Docker container"
+  echo "  -v, --version      Show version information"
+  exit 1
+}
+
+
 # use socat for port 6000
 port6000() {
   echo "checking port 6000"
@@ -10,21 +59,46 @@ port6000() {
     socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\"&
   fi
 }
-imagename=md16o
-containername=$imagename
-docker stop $containername
-docker rm $containername
-os=$(uname -a)
-case $os in
-  Linux*)
-   dockerdisplay=$DISPLAY
-   n="--net=host"
-   v="-v /tmp/.X11-unix:/tmp/.X11-unix -v $HOME/.Xauthority:/root/.Xauthority:rw";;
-  Darwin*)
-   port6000
-   dockerdisplay=docker.for.mac.host.internal:0
-   v=""
-   n="";;
-esac
-docker run  --name $containername -e DISPLAY=$dockerdisplay $n $v -v $HOME/:/home/$USER bitplan/$imagename:latest
-#docker exec -it md16 /bin/bash
+
+kill_docker() {
+  docker stop $containername
+  docker rm $containername
+}
+
+#
+# run MagicDraw 16.9 in a docker container
+#
+run_docker() {
+  echo "DISPLAY=$DISPLAY"
+
+  os=$(uname -a)
+  case $os in
+    Linux*)
+     dockerdisplay=$DISPLAY
+     n="--net=host"
+     v="-v /tmp/.X11-unix:/tmp/.X11-unix -v $HOME/.Xauthority:/root/.Xauthority:rw";;
+    Darwin*)
+     port6000
+     dockerdisplay=docker.for.mac.host.internal:0
+     v=""
+     n="";;
+  esac
+  docker run  --name $containername -e DISPLAY=$dockerdisplay $n $v -v $HOME/:/home/$USER bitplan/$imagename:latest
+}
+
+# Show usage if no arguments are provided
+if [[ $# -eq 0 ]]; then
+  usage
+fi
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help) usage ;;
+    -d|--debug) set -x ;;
+    -k|--kill) kill_docker;;
+    -r|--run) run_docker;;
+    -v|--version) color_msg "Version: $version" ;;
+  esac
+  shift
+done
