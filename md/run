@@ -55,11 +55,22 @@ usage() {
   exit 1
 }
 
-# Check if the Docker container exists, with optional message
+# Check if Docker container exists or is running
+# Args:
+#   l_msg: Optional message to display
+#   check_running: If true, check running state instead of existence
 container_exists() {
   local l_msg="$1"
-  if docker ps -a --format '{{.Names}}' | grep -q "^$containername$"; then
-    [[ -n "$l_msg" ]] && color_msg $blue "$l_msg"
+  local check_running="$2"
+
+  if [ "$check_running" = true ]; then
+    docker ps | grep -q "$containername"
+  else
+    docker ps -a | grep -q "$containername"
+  fi
+
+  if [ $? -eq 0 ]; then
+    [ -n "$l_msg" ] && color_msg $blue "$l_msg"
     return 0
   fi
   return 1
@@ -118,12 +129,15 @@ kill_running() {
 
 # Bash into the Docker container if it exists
 bash_docker() {
-  if container_exists "Starting a Bash session in the container: $containername"; then
-    docker exec -it $containername /bin/bash
-    positive "Bash session exited successfully."
-  else
-    negative "Container $containername does not exist. Start the container first."
+  if ! container_exists "Container check" false; then
+    negative "Container $containername does not exist"
+    return 1
   fi
+  if ! container_exists "Running check" true; then
+    negative "Container $containername exists but is not running"
+    return 1
+  fi
+  docker exec -it $containername /bin/bash
 }
 
 # Restart the Docker container if it exists
