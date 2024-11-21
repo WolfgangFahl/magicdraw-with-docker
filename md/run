@@ -3,6 +3,7 @@
 # updated 2024-11-20
 imagename=md16o
 containername=$imagename
+custom_volume=""
 VERSION="0.2"
 
 # Color definitions
@@ -46,8 +47,10 @@ usage() {
   echo "  -b, --bash         Open a Bash session in the Docker container"
   echo "  -d, --debug        Enable debug mode (set -x)"
   echo "  -k, --kill         Stop and remove the Docker container"
+  echo "  -l, --log          Show container logs"
   echo "  -r, --run          Run the MagicDraw Docker container"
   echo "  -s, --restart      Restart the Docker container if it exists"
+  echo "  --volume HOST_PATH:CONTAINER_PATH   Mount a volume from host path to container path"
   echo "  -v, --version      Show version information"
   exit 1
 }
@@ -62,12 +65,37 @@ container_exists() {
   return 1
 }
 
-# Use socat for port 6000
+# Get X11 socket path from DISPLAY
+get_socket_path() {
+  # Extract socket number from DISPLAY
+  echo "$DISPLAY" | sed 's/^.*\///g'
+}
+
+# Use socat for port 6000 X11 bridge
 port6000() {
-  echo "checking port 6000"
-  lsof -i TCP:6000
-  if [ $? -ne 0 ]; then
-    socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:"$DISPLAY" &
+  # Check if bridge is already running
+  color_msg $blue "Checking X11 bridge on port 6000..."
+  if lsof -i TCP:6000 &>/dev/null; then
+    positive "X11 bridge already running on port 6000"
+  else
+    # Start bridge if not running
+    local socket_path=$(get_socket_path)
+    color_msg $blue "Starting X11 bridge on port 6000 using socket path $socket_path"
+    if socat TCP-LISTEN:6000,reuseaddr,fork unix:/tmp/.X11-unix/X${socket_path} &>/dev/null & then
+      positive "X11 bridge started successfully"
+    else
+      negative "Failed to start X11 bridge"
+      error "Could not establish X11 forwarding bridge"
+    fi
+  fi
+}
+
+# Stop socat bridge if running
+kill_socat() {
+  if pgrep -f "socat TCP-LISTEN:6000" >/dev/null; then
+    color_msg $blue "Stopping X11 bridge on port 6000..."
+    pkill -f "socat TCP-LISTEN:6000"
+    positive "X11 bridge stopped"
   fi
 }
 
@@ -80,6 +108,12 @@ kill_docker() {
   else
     positive "No existing container with the name $containername found."
   fi
+}
+
+# kill running processes
+kill_running() {
+  kill_socat
+  kill_docker
 }
 
 # Bash into the Docker container if it exists
@@ -102,6 +136,16 @@ restart_docker() {
   fi
 }
 
+# Show container logs
+logs_docker() {
+  if ! container_exists "Container $containername exists"; then
+    negative "Container $containername does not exist"
+    return 1
+  fi
+  color_msg $blue "Showing logs for container: $containername"
+  docker logs $containername
+}
+
 # Run MagicDraw 16.9 in a Docker container
 run_docker() {
   echo "DISPLAY=$DISPLAY"
@@ -114,7 +158,7 @@ run_docker() {
       v="-v /tmp/.X11-unix:/tmp/.X11-unix -v $HOME/.Xauthority:/root/.Xauthority:rw";;
     Darwin*)
       port6000
-      dockerdisplay=docker.for.mac.host.internal:0
+      dockerdisplay=host.docker.internal:0
       v=""
       n="";;
   esac
@@ -128,6 +172,10 @@ run_docker() {
       positive "Container $containername started successfully."
     fi
   else
+    # Add custom volume if specified
+    if [ -n "$custom_volume" ]; then
+      v="$v -v $custom_volume"
+    fi
     color_msg $blue "Creating and starting a new container: $containername"
     docker run --name $containername -e DISPLAY=$dockerdisplay $n $v -v $HOME/:/home/$USER bitplan/$imagename:latest
   fi
@@ -143,10 +191,18 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     -h|--help) usage ;;
     -b|--bash) bash_docker ;;
-    -k|--kill) kill_docker ;;
+    -k|--kill) kill_running ;;
+    -l|--log) logs_docker ;;
     -r|--run) run_docker ;;
     -s|--restart) restart_docker ;;
     -v|--version) color_msg $green "Version: $VERSION" ;;
+    --volume)
+      if [[ -z "$2" || ! "$2" =~ ^[^:]+:[^:]+$ ]]; then
+        error "Volume option requires HOST_PATH:CONTAINER_PATH format"
+      fi
+      custom_volume="$2"
+      shift
+      ;;
     -d|--debug) set -x ;;
     *) negative "Unknown option: $1"; usage ;;
   esac
