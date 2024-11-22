@@ -90,9 +90,8 @@ port6000() {
     positive "X11 bridge already running on port 6000"
   else
     # Start bridge if not running
-    local socket_path=$(get_socket_path)
-    color_msg $blue "Starting X11 bridge on port 6000 using socket path $socket_path"
-    if socat TCP-LISTEN:6000,reuseaddr,fork unix:/tmp/.X11-unix/X${socket_path} &>/dev/null & then
+    color_msg $blue "Starting X11 bridge on port 6000"
+    if socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\" &>/dev/null & then
       positive "X11 bridge started successfully"
     else
       negative "Failed to start X11 bridge"
@@ -172,7 +171,7 @@ run_docker() {
       v="-v /tmp/.X11-unix:/tmp/.X11-unix -v $HOME/.Xauthority:/root/.Xauthority:rw";;
     Darwin*)
       port6000
-      dockerdisplay=host.docker.internal:0
+      dockerdisplay=docker.for.mac.host.internal:0
       v=""
       n="";;
   esac
