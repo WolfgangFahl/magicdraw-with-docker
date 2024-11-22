@@ -45,6 +45,7 @@ usage() {
   echo "Options:"
   echo "  -h, --help         Show this help message"
   echo "  -b, --bash         Open a Bash session in the Docker container"
+  echo "  -c, --commit NAME Commit the current container state to a new image with NAME"
   echo "  -d, --debug        Enable debug mode (set -x)"
   echo "  -k, --kill         Stop and remove the Docker container"
   echo "  -l, --log          Show container logs"
@@ -139,6 +140,27 @@ bash_docker() {
   docker exec -it $containername /bin/bash
 }
 
+# function to commit container state
+# params
+#  #1: new_tag - the tag for the image to be created from the container
+commit_docker() {
+  local new_tag="$1"
+ if ! container_exists "Container check for commit"; then
+   negative "Container $containername does not exist"
+   return 1
+ fi
+
+ color_msg $blue "Committing container state to new image: $new_tag"
+ if docker commit $containername $new_tag; then
+   positive "Container state committed successfully to $new_tag"
+   color_msg $blue "You can now use this image with:"
+   echo "docker run --name $containername -e DISPLAY=\$dockerdisplay \$n \$v $new_tag"
+ else
+   negative "Failed to commit container state"
+   return 1
+ fi
+}
+
 # Restart the Docker container if it exists
 restart_docker() {
   if container_exists "Restarting container: $containername"; then
@@ -204,6 +226,13 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     -h|--help) usage ;;
     -b|--bash) bash_docker ;;
+    -c|--commit)
+      if [[ -z "$2" ]]; then
+        error "Commit option requires a NAME parameter"
+      fi
+      commit_docker "$2"
+      shift
+      ;;
     -k|--kill) kill_running ;;
     -l|--log) logs_docker ;;
     -r|--run) run_docker ;;
